@@ -34,20 +34,28 @@ class ProxyRetriever:
     def refresh_proxies(self):
         self.proxies = self.get_proxies()
 
+    @staticmethod
+    def get_ip(proxy, timeout=1):
+        with requests.Session() as s:
+            req = s.get('http://icanhazip.com', proxies=proxy, timeout=timeout)
+            req.raise_for_status()
+        my_ip = unidecode.unidecode(req.text).strip()
+        return my_ip
+
+    def check_proxy(self, proxy, i=0, timeout=1, verbose=True):
+        try:
+            my_ip = self.get_ip(proxy, timeout)
+            if verbose:
+                print(f'#{i}: Proxy {str(proxy["http"])} is fast. My IP = {my_ip}.')
+            return True
+        except requests.RequestException:  # If error, delete this proxy and find another one
+            if verbose:
+                print(f'#{i}: Proxy {str(proxy["http"])} is slow.')
+            return False
+
     def update_fast_proxies(self, timeout=1, verbose=True):
         fast_proxies = []
         for proxy, i in zip(self.proxies, range(len(self.proxies))):
-            try:
-                with requests.Session() as s:
-                    req = s.get('http://icanhazip.com', proxies=proxy, timeout=timeout)
-                    req.raise_for_status()
-                my_ip = unidecode.unidecode(req.text).strip()
+            if self.check_proxy(proxy, i, timeout, verbose):
                 fast_proxies.append(proxy)
-                if verbose:
-                    print(f'#{i}: Proxy {str(proxy["http"])} is fast. My IP = {my_ip}.')
-
-            except:  # If error, delete this proxy and find another one
-                del self.proxies[i]
-                if verbose:
-                    print(f'#{i}: Proxy {str(proxy["http"])} is slow.')
         self.fast_proxies = fast_proxies
