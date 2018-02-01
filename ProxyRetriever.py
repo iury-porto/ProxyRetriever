@@ -28,18 +28,22 @@ def get_sslproxies():
 
 class ThProxyChecker(threading.Thread):
     """Threaded Proxy Checker"""
-    def __init__(self, check_fun, proxy_queue, fast_queue, *args, **kwargs):
+    def __init__(self, check_fun, proxy_queue, fast_queue, stop_event, *args, **kwargs):
         threading.Thread.__init__(self)
         self.queue = proxy_queue
         self.out_queue = fast_queue
         self.check_proxy = check_fun
         self.args = args
         self.kwargs = kwargs
+        self.stop_event = stop_event
 
     def run(self):
-        while True:
+        while not self.stop_event.is_set():
             # get a proxy from queue
-            proxy = self.queue.get()
+            try:
+                proxy = self.queue.get(timeout=1)
+            except queue.Empty:
+                continue
 
             # do work on that proxy
             out = self.check_proxy(proxy, *self.args, **self.kwargs)
@@ -103,18 +107,24 @@ class ProxyRetriever:
         proxy_q = queue.Queue()
         fast_q = queue.Queue()
         # Spawn threads
+        thread_list = []
+        stop_event = threading.Event()
+
         for i in range(nthreads):
-            t = self.th_worker(self.check_proxy, proxy_q, fast_q, timeout=timeout, verbose=verbose)
-            t.setDaemon(True)
+            t = self.th_worker(self.check_proxy, proxy_q, fast_q, stop_event, timeout=timeout, verbose=verbose)
+            #t.setDaemon(True)
             t.start()
+            thread_list.append(t)
 
         # Populate queue with proxies
-        i = 0
         for p in self.proxies:
             proxy_q.put(p)
 
         # Wait on the queues
         proxy_q.join()
+
+        # Kill threads
+        stop_event.set()
 
         # Update the fast list
         self.fast_proxies = list(fast_q.queue)
