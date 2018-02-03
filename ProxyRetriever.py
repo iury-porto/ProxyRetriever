@@ -5,6 +5,7 @@ import unidecode
 import threading
 import queue
 
+
 def get_sslproxies():
     ua = UserAgent()  # From here we generate a random user agent
     proxies = []  # Will contain proxies ['ip:port']
@@ -21,7 +22,7 @@ def get_sslproxies():
         ip = row.find_all('td')[0].string
         port = row.find_all('td')[1].string
         proxies.append({
-            'http': f'{ip}:{port}'
+            'https': f'{ip}:{port}'
         })
     return proxies
 
@@ -76,7 +77,7 @@ class ProxyRetriever:
     @staticmethod
     def get_ip(proxy, timeout=1):
         with requests.Session() as s:
-            req = s.get('http://icanhazip.com', proxies=proxy, timeout=timeout)
+            req = s.get('https://icanhazip.com', proxies=proxy, timeout=timeout)
             req.raise_for_status()
         my_ip = unidecode.unidecode(req.text).strip()
         return my_ip
@@ -85,22 +86,22 @@ class ProxyRetriever:
         try:
             my_ip = self.get_ip(proxy, timeout)
             if verbose:
-                print(f'#{i}: Proxy {str(proxy["http"])} is fast. My IP = {my_ip}.')
+                print(f'#{i}: Proxy {str(proxy["https"])} is fast. My IP = {my_ip}.')
             return True
         except requests.RequestException:  # If error, delete this proxy and find another one
             if verbose:
-                print(f'#{i}: Proxy {str(proxy["http"])} is slow.')
+                print(f'#{i}: Proxy {str(proxy["https"])} is slow.')
             return False
 
     def check_proxy(self, proxy, timeout=1, verbose=True):
         try:
             my_ip = self.get_ip(proxy, timeout=timeout)
             if verbose:
-                print(f'#: Proxy {str(proxy["http"])} is fast. My IP = {my_ip}.')
+                print(f'#: Proxy {str(proxy["https"])} is fast. My IP = {my_ip}.')
             return True
         except requests.RequestException:  # If error, delete this proxy and find another one
             if verbose:
-                print(f'#: Proxy {str(proxy["http"])} is slow.')
+                print(f'#: Proxy {str(proxy["https"])} is slow.')
             return False
 
     def update_fast_proxies(self, timeout=1, verbose=True):
@@ -119,7 +120,7 @@ class ProxyRetriever:
 
         for i in range(nthreads):
             t = self.th_worker(self.check_proxy, proxy_q, fast_q, stop_event, timeout=timeout, verbose=verbose)
-            #t.setDaemon(True)
+            # t.setDaemon(True)
             t.start()
             thread_list.append(t)
 
