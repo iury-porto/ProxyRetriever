@@ -63,6 +63,13 @@ class ProxyRetriever:
         self.fast_proxies = []
         self.th_worker = th_worker
 
+    def __call__(self, nthreads=8, timeout=1, verbose=False, threaded=True):
+        if threaded is True:
+            self.th_update_fast_proxies(nthreads, timeout, verbose)
+        else:
+            self.update_fast_proxies(timeout,verbose)
+        return self.fast_proxies
+
     def refresh_proxies(self):
         self.proxies = self.get_proxies()
 
