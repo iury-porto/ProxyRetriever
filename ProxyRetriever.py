@@ -4,7 +4,9 @@ from fake_useragent import UserAgent
 import unidecode
 import threading
 import queue
+from useragent_list import useragent_list as ua_list
 
+user_agents = ['Mozilla/5.0 (X11; CrOS i686 4319.74.0) AppleWebKit/537.36 (KHTML, like Gecko)']
 
 def get_sslproxies():
     ua = UserAgent()  # From here we generate a random user agent
@@ -64,12 +66,17 @@ class ProxyRetriever:
         self.fast_proxies = []
         self.th_worker = th_worker
 
-    def __call__(self, nthreads=8, timeout=1, verbose=False, threaded=True):
+    def __call__(self, nthreads=100, timeout=1, verbose=False, threaded=True, include_useragent=False):
         if threaded is True:
             self.th_update_fast_proxies(nthreads, timeout, verbose)
         else:
             self.update_fast_proxies(timeout,verbose)
-        return self.fast_proxies
+        if include_useragent is not False:
+            n_fast_proxies = len(self.fast_proxies)
+            useragent_list = [ua_list[i%n_fast_proxies] for i in range(n_fast_proxies)]
+            return self.fast_proxies, useragent_list
+        else:
+            return self.fast_proxies
 
     def refresh_proxies(self):
         self.proxies = self.get_proxies()
@@ -111,7 +118,7 @@ class ProxyRetriever:
                 fast_proxies.append(proxy)
         self.fast_proxies = fast_proxies
 
-    def th_update_fast_proxies(self, nthreads=8, timeout=1, verbose=True):
+    def th_update_fast_proxies(self, nthreads=100, timeout=1, verbose=True):
         proxy_q = queue.Queue()
         fast_q = queue.Queue()
         # Spawn threads
