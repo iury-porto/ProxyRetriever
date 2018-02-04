@@ -74,7 +74,7 @@ class ProxyRetriever:
         if include_useragent is not False:
             n_fast_proxies = len(self.fast_proxies)
             useragent_list = [ua_list[i%n_fast_proxies] for i in range(n_fast_proxies)]
-            return self.fast_proxies, useragent_list
+            return zip(self.fast_proxies, useragent_list)
         else:
             return self.fast_proxies
 
