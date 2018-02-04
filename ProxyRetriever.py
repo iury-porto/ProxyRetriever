@@ -8,7 +8,7 @@ from useragent_list import useragent_list as ua_list
 
 user_agents = ['Mozilla/5.0 (X11; CrOS i686 4319.74.0) AppleWebKit/537.36 (KHTML, like Gecko)']
 
-def get_sslproxies():
+def get_sslproxies(noport=False):
     ua = UserAgent()  # From here we generate a random user agent
     proxies = []  # Will contain proxies ['ip:port']
 
@@ -23,9 +23,14 @@ def get_sslproxies():
     for row in proxies_table.tbody.find_all('tr'):
         ip = row.find_all('td')[0].string
         port = row.find_all('td')[1].string
-        proxies.append({
-            'https': f'{ip}:{port}'
-        })
+        if noport is False:
+            proxies.append({
+                'https': f'{ip}:{port}'
+            })
+        else:
+            proxies.append({
+                'https': f'{ip}'
+            })
     return proxies
 
 
@@ -62,11 +67,12 @@ class ThProxyChecker(threading.Thread):
 class ProxyRetriever:
     def __init__(self, get_proxies_fun=get_sslproxies, th_worker=ThProxyChecker):
         self.get_proxies = get_proxies_fun
-        self.proxies = get_proxies_fun()
+        self.proxies = []
         self.fast_proxies = []
         self.th_worker = th_worker
 
-    def __call__(self, nthreads=100, timeout=1, verbose=False, threaded=True, include_useragent=False):
+    def __call__(self, nthreads=100, timeout=1, verbose=False, threaded=True, include_useragent=False, noport=False):
+        self.proxies = self.get_proxies(noport)
         if threaded is True:
             self.th_update_fast_proxies(nthreads, timeout, verbose)
         else:
