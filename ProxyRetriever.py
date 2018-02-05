@@ -64,12 +64,45 @@ class ThProxyChecker(threading.Thread):
             self.queue.task_done()
 
 
+def get_ip(proxy, timeout=1):
+    with requests.Session() as s:
+        req = s.get('https://icanhazip.com', proxies=proxy, timeout=timeout)
+        req.raise_for_status()
+    my_ip = unidecode.unidecode(req.text).strip()
+    return my_ip
+
+
+def check_proxy_i(proxy, i=0, timeout=1, verbose=True):
+    try:
+        my_ip = get_ip(proxy, timeout)
+        if verbose:
+            print(f'#{i}: Proxy {str(proxy["https"])} is fast. My IP = {my_ip}.')
+        return True
+    except requests.RequestException:  # If error, delete this proxy and find another one
+        if verbose:
+            print(f'#{i}: Proxy {str(proxy["https"])} is slow.')
+        return False
+
+
+def check_proxy(proxy, timeout=1, verbose=True):
+    try:
+        my_ip = get_ip(proxy, timeout=timeout)
+        if verbose:
+            print(f'#: Proxy {str(proxy["https"])} is fast. My IP = {my_ip}.')
+        return True
+    except requests.RequestException:  # If error, delete this proxy and find another one
+        if verbose:
+            print(f'#: Proxy {str(proxy["https"])} is slow.')
+        return False
+
+
 class ProxyRetriever:
-    def __init__(self, get_proxies_fun=get_sslproxies, th_worker=ThProxyChecker):
+    def __init__(self, get_proxies_fun=get_sslproxies, check_proxy_fun=check_proxy, th_worker=ThProxyChecker):
         self.get_proxies = get_proxies_fun
         self.proxies = []
         self.fast_proxies = []
         self.th_worker = th_worker
+        self.check_proxy = check_proxy_fun
 
     def __call__(self, nthreads=100, timeout=1, verbose=False, threaded=True, include_useragent=False, noport=False):
         self.proxies = self.get_proxies(noport)
@@ -87,40 +120,10 @@ class ProxyRetriever:
     def refresh_proxies(self):
         self.proxies = self.get_proxies()
 
-    @staticmethod
-    def get_ip(proxy, timeout=1):
-        with requests.Session() as s:
-            req = s.get('https://icanhazip.com', proxies=proxy, timeout=timeout)
-            req.raise_for_status()
-        my_ip = unidecode.unidecode(req.text).strip()
-        return my_ip
-
-    def check_proxy_i(self, proxy, i=0, timeout=1, verbose=True):
-        try:
-            my_ip = self.get_ip(proxy, timeout)
-            if verbose:
-                print(f'#{i}: Proxy {str(proxy["https"])} is fast. My IP = {my_ip}.')
-            return True
-        except requests.RequestException:  # If error, delete this proxy and find another one
-            if verbose:
-                print(f'#{i}: Proxy {str(proxy["https"])} is slow.')
-            return False
-
-    def check_proxy(self, proxy, timeout=1, verbose=True):
-        try:
-            my_ip = self.get_ip(proxy, timeout=timeout)
-            if verbose:
-                print(f'#: Proxy {str(proxy["https"])} is fast. My IP = {my_ip}.')
-            return True
-        except requests.RequestException:  # If error, delete this proxy and find another one
-            if verbose:
-                print(f'#: Proxy {str(proxy["https"])} is slow.')
-            return False
-
     def update_fast_proxies(self, timeout=1, verbose=True):
         fast_proxies = []
         for proxy, i in zip(self.proxies, range(len(self.proxies))):
-            if self.check_proxy_i(proxy, i, timeout=timeout, verbose=verbose):
+            if check_proxy_i(proxy, i, timeout=timeout, verbose=verbose):
                 fast_proxies.append(proxy)
         self.fast_proxies = fast_proxies
 
